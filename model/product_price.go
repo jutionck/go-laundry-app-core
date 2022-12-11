@@ -1,7 +1,7 @@
 package model
 
 type ProductPrice struct {
-	Id        string
+	Id        string `gorm:"primaryKey"`
 	Price     int
 	IsActive  bool `gorm:"default:true"`
 	ProductID string

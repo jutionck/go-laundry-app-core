@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"github.com/jutionck/go-laundry-app-core/model"
 	"gorm.io/gorm"
 )
@@ -10,8 +11,9 @@ type CustomerRepository interface {
 	Create(customer *model.Customer) error
 	Update(customer *model.Customer) error
 	Delete(customerId string) error
-	FindById(customerId string) (model.Customer, error)
+	FindById(customerId string) (*model.Customer, error)
 	FindAll(page int, itemPerPage int, by string, values ...interface{}) ([]model.Customer, error)
+	FindByPhoneNumber(phoneNumber string) (*model.Customer, error)
 }
 
 type customerRepository struct {
@@ -27,22 +29,20 @@ func (c *customerRepository) Update(customer *model.Customer) error {
 }
 
 func (c *customerRepository) Delete(customerId string) error {
-	//return c.db.Delete(&model.Customer{}, "id="+"'"+customerId+"'").Error
 	return c.db.Delete(&model.Customer{Id: customerId}).Error
 }
 
-func (c *customerRepository) FindById(customerId string) (model.Customer, error) {
+func (c *customerRepository) FindById(customerId string) (*model.Customer, error) {
 	customer := model.Customer{}
-	// UnScoped() -> akan men-select delete is NULL
-	result := c.db.Unscoped().Find(&customer, "id = ?", customerId)
-	if err := result.Error; err != nil {
+	err := c.db.Unscoped().Where("id=?", customerId).First(&customer).Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return customer, nil
+			return nil, nil
 		} else {
-			return customer, err
+			return nil, fmt.Errorf("customerRepo.FindById : %w", err)
 		}
 	}
-	return customer, nil
+	return &customer, nil
 }
 
 func (c *customerRepository) FindAll(page int, itemPerPage int, by string, values ...interface{}) ([]model.Customer, error) {
@@ -60,7 +60,19 @@ func (c *customerRepository) FindAll(page int, itemPerPage int, by string, value
 		}
 	}
 	return customers, nil
+}
 
+func (c *customerRepository) FindByPhoneNumber(phoneNumber string) (*model.Customer, error) {
+	customer := model.Customer{}
+	err := c.db.Unscoped().Where("phone_number=?", phoneNumber).First(&customer).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("customerRepo.FindByPhoneNumber : %w", err)
+	}
+
+	return &customer, nil
 }
 
 func NewCustomerRepository(db *gorm.DB) CustomerRepository {

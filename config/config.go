@@ -1,69 +1,31 @@
 package config
 
-import (
-	"fmt"
-	"github.com/jutionck/go-laundry-app-core/model"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"os"
-)
+import "os"
+
+type DbConfig struct {
+	Host     string
+	Port     string
+	DbName   string
+	User     string
+	Password string
+}
 
 type Config struct {
-	db *gorm.DB
+	DbConfig
 }
 
-func (c *Config) DbClose() error {
-	db, _ := c.db.DB()
-	err := db.Close()
-	if err != nil {
-		panic(err)
+func (c Config) readConfig() Config {
+	c.DbConfig = DbConfig{
+		Host:     os.Getenv("DB_HOST"),
+		Port:     os.Getenv("DB_PORT"),
+		DbName:   os.Getenv("DB_NAME"),
+		User:     os.Getenv("DB_USER"),
+		Password: os.Getenv("DB_PASSWORD"),
 	}
-	return err
-}
-
-func (c *Config) readConfig() {
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
-	env := os.Getenv("ENV")
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s", dbHost, dbUser, dbPassword, dbName, dbPort)
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	if err != nil {
-		panic(err)
-	}
-	enigmaDb, err := db.DB()
-	err = enigmaDb.Ping()
-	if err != nil {
-		panic(err)
-	}
-	if env == "dev" {
-		c.db = db.Debug()
-	} else if env == "migration" {
-		c.db = db.Debug()
-		err := c.db.AutoMigrate(
-			&model.Customer{},
-			&model.Product{},
-			&model.ProductPrice{},
-			&model.BillDetail{},
-			&model.Bill{},
-		)
-
-		if err != nil {
-			return
-		}
-	} else {
-		c.db = db
-	}
-}
-
-func (c *Config) DbConn() *gorm.DB {
-	return c.db
+	return c
 }
 
 func NewConfig() Config {
 	cfg := Config{}
-	cfg.readConfig()
-	return cfg
+	return cfg.readConfig()
 }

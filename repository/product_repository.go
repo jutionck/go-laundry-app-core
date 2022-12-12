@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"github.com/jutionck/go-laundry-app-core/model"
 	"gorm.io/gorm"
 )
@@ -10,9 +11,10 @@ type ProductRepository interface {
 	Create(product *model.Product) error
 	Update(product *model.Product) error
 	Delete(productId string) error
-	FindById(productId string) (model.Product, error)
+	FindById(productId string) (*model.Product, error)
 	FindAll(page int, itemPerPage int, by string, values ...interface{}) ([]model.Product, error)
-	FindByProductPriceId(productPriceId string) (model.ProductPrice, error)
+	FindByProductPriceId(productPriceId string) (*model.ProductPrice, error)
+	FindByName(name string) (*model.Product, error)
 }
 
 type productRepository struct {
@@ -31,17 +33,17 @@ func (c *productRepository) Delete(productId string) error {
 	return c.db.Delete(&model.Product{Id: productId}).Error
 }
 
-func (c *productRepository) FindById(productId string) (model.Product, error) {
+func (c *productRepository) FindById(productId string) (*model.Product, error) {
 	product := model.Product{}
 	result := c.db.Unscoped().Preload("ProductPrices").Find(&product, "id = ?", productId)
 	if err := result.Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return product, nil
+			return nil, nil
 		} else {
-			return product, err
+			return nil, err
 		}
 	}
-	return product, nil
+	return &product, nil
 }
 
 func (c *productRepository) FindAll(page int, itemPerPage int, by string, values ...interface{}) ([]model.Product, error) {
@@ -61,17 +63,30 @@ func (c *productRepository) FindAll(page int, itemPerPage int, by string, values
 	return products, nil
 }
 
-func (c *productRepository) FindByProductPriceId(productPriceId string) (model.ProductPrice, error) {
+func (c *productRepository) FindByProductPriceId(productPriceId string) (*model.ProductPrice, error) {
 	productPrice := model.ProductPrice{}
 	result := c.db.Unscoped().Preload("Product").Find(&productPrice, "id = ?", productPriceId)
 	if err := result.Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return productPrice, nil
+			return nil, nil
 		} else {
-			return productPrice, err
+			return nil, err
 		}
 	}
-	return productPrice, nil
+	return &productPrice, nil
+}
+
+func (c *productRepository) FindByName(name string) (*model.Product, error) {
+	product := model.Product{}
+	err := c.db.Unscoped().Where("name=?", name).First(&product).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("productRepo.FindByName : %w", err)
+	}
+
+	return &product, nil
 }
 
 func NewProductRepository(db *gorm.DB) ProductRepository {
